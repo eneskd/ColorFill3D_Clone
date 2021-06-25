@@ -6,46 +6,62 @@ using UnityEngine.Serialization;
 
 public class GridManager : MonoBehaviour
 {
-    [SerializeField] private Vector2Int gridSize = new Vector2Int(10, 10);
+    public delegate void PlayerStopHandler();
+    public event PlayerStopHandler PlayerStop;
+    
+    public static float cellSize = 1f;
+    public static float margin = 0.05f;
+
+    public Tile[,] Grid;
+    public List<Tile> activeTiles = new List<Tile>();
+    public List<Tile> safeTiles = new List<Tile>();
+    public List<Tile> idleTiles = new List<Tile>();
+    public List<Tile> emptyTiles = new List<Tile>();
+    public Material defaultMat;
+    public Material activeMat;
+    public Material safeMat;
+
+        
+    public Vector2Int gridSize = new Vector2Int(10, 10);
+    
     [SerializeField] private GameObject gridObject;
-    [SerializeField] private float margin = 0.2f;
-    [SerializeField] private float cellLength = 1f;
     [SerializeField] private float yPos = -1;
-    private float ObjectSize => cellLength - margin;
-
-    private List<GameObject> _objects = new List<GameObject>();
-
+    
+    
     public static GridManager I { get; private set; }
 
     private void Awake()
     {
         if (I != null && I != this)
         {
-            Destroy(this.gameObject);
+            Destroy(gameObject);
         }
         else
         {
             I = this;
         }
-
-        print(ObjectSize);
+        FillGrid();
     }
 
 
     public void FillGrid()
     {
         ClearGrid();
+        Grid = new Tile[gridSize.x, gridSize.y];
 
         for (var i = 0; i < gridSize.x; i++)
         {
             for (var j = 0; j < gridSize.y; j++)
             {
-                var pos = transform.position + new Vector3(i, yPos, j) * cellLength +
-                          new Vector3(0.5f, yPos, 0.5f) * cellLength;
+                var pos = transform.position + new Vector3(i, 0, j) * cellSize;
+                pos.y = yPos;
                 var gridObj = Instantiate(gridObject, pos, Quaternion.identity);
                 gridObj.transform.localScale -= Vector3.one * margin;
                 gridObj.transform.SetParent(this.gameObject.transform);
-                _objects.Add(gridObj);
+                var tile = gridObj.GetComponent<Tile>();
+                tile.coord = new Vector2Int(i, j);
+                Grid[i,j] = tile;
+                idleTiles.Add(tile);
             }
         }
     }
@@ -64,11 +80,19 @@ public class GridManager : MonoBehaviour
             DestroyImmediate(children[i]);
         }
 
-        _objects.Clear();
+        Grid = null;
+        idleTiles.Clear();
+        activeTiles.Clear();
+        safeTiles.Clear();
     }
 
     public void Snap()
     {
         transform.position = transform.position.Round();
+    }
+
+    public virtual void OnPlayerStop()
+    {
+        PlayerStop?.Invoke();
     }
 }
